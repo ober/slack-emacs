@@ -22,9 +22,6 @@
 
 ;;; Commentary:
 ;; Some of this is cribbed from:
-;;; hackernews.el --- Hacker News Client for Emacs
-;; Copyright (C) 2012  Lincoln de Sousa <lincoln@comum.org>
-
 ;; time, and many revisions before I would expect it to be useful to anyone.
 ;;
 
@@ -65,7 +62,6 @@
   (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer "*slack-group-list*")
 		(uri (format "https://slack.com/api/groups.list?token=%s" slack-token)))
-
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
@@ -208,7 +204,6 @@
 	(ok (cdr (assoc 'ok element))))
     (insert (propertize (format " Time:%s Channel:%s OK?:%s" (print-time ts) (slack-get-channel-from-id channel) ok) 'face '(:foreground "white")))))
 
-
 (defun slack-print-search-results (element)
   (let ((text (cdr (assoc 'text element)))
 	(ts (cdr (assoc 'ts element)))
@@ -263,78 +258,147 @@
 	 (mapcar #'slack-print-list-channels (cdr (assoc 'channels (json-read-from-string my-data))))))
      :url uri)))
 
-(defun slack-print-list-channels (element)
-  (let* ((num_members (format "%s" (cdr (assoc 'num_members element))))
-	 (purpose (format "%s" (cdr (assoc 'purpose element))))
-	 (topic (format "%s" (cdr (assoc 'topic element))))
-	 (is_member (format "%s" (cdr (assoc 'is_member element))))
-	 (members (format "%s" (cdr (assoc 'members element))))
-	 (is_general (format "%s" (cdr (assoc 'is_general element))))
-	 (is_archived (format "%s" (cdr (assoc 'is_archived element))))
-	 (creator (format "%s" (cdr (assoc 'creator element))))
-	 (created (format "%s" (cdr (assoc 'created element))))
-	 (name (format "%s" (cdr (assoc 'name element))))
-	 (id (format "%s" (cdr (assoc 'id element)))))
-    (puthash id name slack-channels-id)
-    (puthash name id slack-channels-name)
-    (slack-populate-users-hash)
-    (slack-create-channel-link-in-buffer "blue" name id)
-    ;;(insert (propertize (format " %s" id) 'face '(:foreground "purple")))
-    (insert (propertize (format " #%s" num_members) 'face '(:foreground "darkgreen")))
-    ;;(insert (propertize (format " %s" is_member) 'face '(:foreground "red")))
-    ;;(insert (propertize (format " %s" is_archived) 'face '(:foreground "blue")))
-    (insert (propertize (format " creator: %s" (slack-get-username-from-id creator)) 'face '(:foreground "darkgreen")))
-    (insert (propertize (format " created: %s" (print-time created)) 'face '(:foreground "blue")))
-    ;;(insert (propertize (format " members: %s" members) 'face '(:foreground "red")))
-    (insert (propertize (format " members: %s" (mapcar 'slack-get-username-from-id (split-string members))) 'face '(:foreground "red")))
-    (princ "\n")))
+;; (defun slack-print-list-channels (element)
+;;   (let* ((num_members (format "%s" (cdr (assoc 'num_members element))))
+;; 	 (purpose (format "%s" (cdr (assoc 'purpose element))))
+;; 	 (topic (format "%s" (cdr (assoc 'topic element))))
+;; 	 (is_member (format "%s" (cdr (assoc 'is_member element))))
+;; 	 (members (format "%s" (cdr (assoc 'members element))))
+;; 	 (is_general (format "%s" (cdr (assoc 'is_general element))))
+;; 	 (is_archived (format "%s" (cdr (assoc 'is_archived element))))
+;; 	 (creator (format "%s" (cdr (assoc 'creator element))))
+;; 	 (created (format "%s" (cdr (assoc 'created element))))
+;; 	 (name (format "%s" (cdr (assoc 'name element))))
+;; 	 (id (format "%s" (cdr (assoc 'id element)))))
+;;     (puthash id name slack-channels-id)
+;;     (puthash name id slack-channels-name)
+;;     (slack-populate-users-hash)
+;;     (slack-create-channel-link-in-buffer "blue" name id)
+;;     ;;(insert (propertize (format " %s" id) 'face '(:foreground "purple")))
+;;     (insert (propertize (format " #%s" num_members) 'face '(:foreground "darkgreen")))
+;;     ;;(insert (propertize (format " %s" is_member) 'face '(:foreground "red")))
+;;     ;;(insert (propertize (format " %s" is_archived) 'face '(:foreground "blue")))
+;;     (insert (propertize (format " creator: %s" (slack-get-username-from-id creator)) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " created: %s" (print-time created)) 'face '(:foreground "blue")))
+;;     ;;(insert (propertize (format " members: %s" members) 'face '(:foreground "red")))
+;;     (insert (propertize (format " members: %s" (mapcar 'slack-get-username-from-id (split-string members))) 'face '(:foreground "red")))
+;;     (princ "\n")))
+
+
 
 (defun slack-print-list-users (element)
-  (let*
-      ((has_files (cdr (assoc 'has_files element)))
-       (is_ultra_restricted (cdr (assoc 'is_ultra_restricted element)))
-       (is_restricted (cdr (assoc 'is_restricted element)))
-       (is_primary_owner (cdr (assoc 'is_primary_owner element)))
-       (is_owner (cdr (assoc 'is_owner element)))
-       (is_admin (cdr (assoc 'is_admin element)))
-       (profile (cdr (assoc 'profile element)))
-       (email (cdr (assoc 'email profile)))
-       (real_name (cdr (assoc 'real_name profile)))
-       (image_original (cdr (assoc 'image_original profile)))
-       (image_192 (cdr (assoc 'image_192 profile)))
-       (image_72 (cdr (assoc 'image_72 profile)))
-       (image_48 (cdr (assoc 'image_48 profile)))
-       (image_32 (cdr (assoc 'image_32 profile)))
-       (image_24 (cdr (assoc 'image_24 profile)))
-       (last_name (cdr (assoc 'last_name profile)))
-       (first_name (cdr (assoc 'first_name profile)))
-       (tz_offset (cdr (assoc 'tz_offset element)))
-       (tz (cdr (assoc 'tz element)))
-       (phone (cdr (assoc 'phone element)))
-       (skype (cdr (assoc 'skype element)))
-       (real_name (cdr (assoc 'real_name element)))
-       (color (cdr (assoc 'color element)))
-       (status (cdr (assoc 'status element)))
-       (deleted (cdr (assoc 'deleted element)))
-       (name (cdr (assoc 'name element)))
-       (id (cdr (assoc 'id element)))
-       (short-name (nth 0  (split-string email "@"))))
-    ;;(if real_name
-    ;;(puthash id real_name slack-users)
-    (puthash id real_name slack-users)
-    ;;)
-    ;;(insert (propertize (format " profile: %s" profile) 'face '(:foreground "darkgreen")))
-    ;; (insert (propertize (format " %s" name) 'face '(:foreground "darkgreen")))
-    ;; (insert (propertize (format " %s" email) 'face '(:foreground "orange")))
-    (insert (propertize (format " real_name:%s" real_name) 'face '(:foreground "orange")))
-    (insert (propertize (format " phone:%s" phone) 'face '(:foreground "orange")))
-    ;;    (insert (propertize (format " email:%s" email) 'face '(:foreground "darkgreen")))
-    (insert (propertize (format " is_ultra_restricted:%s" is_ultra_restricted) 'face '(:foreground "purple")))
-    (insert (propertize (format " is_restricted:%s" is_restricted) 'face '(:foreground "darkgreen")))
-    (insert (propertize (format " is_admin:%s" is_restricted) 'face '(:foreground "darkgreen")))
-    (insert (propertize (format " phone:%s" phone) 'face '(:foreground "darkgreen")))
-    (insert (propertize (format " skype:%s" skype) 'face '(:foreground "darkgreen")))
-    (princ "\n")))
+  (let-alist element
+    (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
+    (color-insert
+     (list
+      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "yellow")))))
+
+(defun slack-print-list-channels (element)
+  (let-alist element
+    (list .num_members .purpose .topic .is_member .members .is_general .is_archived .creator .created .name .id)
+    (color-insert
+     (list
+      (cons .num_members "orange") (cons .purpose "blue") (cons .topic "purple") (cons .is_member "pink") (cons .members "black") (cons .is_general "brown") (cons .is_archived "silver") (cons .creator "darkblue") (cons .created "yellow") (cons .name "blue") (cons .id "orange"))))
+
+
+  ;; (let* ((num_members (format "%s" (cdr (assoc 'num_members element))))
+  ;; 	 (purpose (format "%s" (cdr (assoc 'purpose element))))
+  ;; 	 (topic (format "%s" (cdr (assoc 'topic element))))
+  ;; 	 (is_member (format "%s" (cdr (assoc 'is_member element))))
+  ;; 	 (members (format "%s" (cdr (assoc 'members element))))
+  ;; 	 (is_general (format "%s" (cdr (assoc 'is_general element))))
+  ;; 	 (is_archived (format "%s" (cdr (assoc 'is_archived element))))
+  ;; 	 (creator (format "%s" (cdr (assoc 'creator element))))
+  ;; 	 (created (format "%s" (cdr (assoc 'created element))))
+  ;; 	 (name (format "%s" (cdr (assoc 'name element))))
+  ;; 	 (id (format "%s" (cdr (assoc 'id element)))))
+  ;;   (puthash id name slack-channels-id)
+  ;;   (puthash name id slack-channels-name)
+  ;;   (slack-populate-users-hash)
+  ;;   (slack-create-channel-link-in-buffer "blue" name id)
+  ;;   ;;(insert (propertize (format " %s" id) 'face '(:foreground "purple")))
+  ;;   (insert (propertize (format " #%s" num_members) 'face '(:foreground "darkgreen")))
+  ;;   ;;(insert (propertize (format " %s" is_member) 'face '(:foreground "red")))
+  ;;   ;;(insert (propertize (format " %s" is_archived) 'face '(:foreground "blue")))
+  ;;   (insert (propertize (format " creator: %s" (slack-get-username-from-id creator)) 'face '(:foreground "darkgreen")))
+  ;;   (insert (propertize (format " created: %s" (print-time created)) 'face '(:foreground "blue")))
+  ;;   ;;(insert (propertize (format " members: %s" members) 'face '(:foreground "red")))
+  ;;   (insert (propertize (format " members: %s" (mapcar 'slack-get-username-from-id (split-string members))) 'face '(:foreground "red")))
+  ;;   (princ "\n")))
+
+
+(defun maybe-insert-propertized (sym alist color)
+  "Pull the cdr of an assoc of SYM from ALIST and print it via color COLOR"
+  (let ((value (cdr (assoc sym alist))))
+    (insert (propertize (format " %s:%s" sym value) 'face '(:forground color)))))
+
+(defun color-insert (pairs)
+  "Color me: Insert a propertized tag for text and color coding"
+  (dolist (x pairs)
+    (let ((val (car x))
+	  (color (cdr x)))
+      (insert (propertize (format "%s " val) 'face `(:foreground ,color)))))
+  (princ "\n"))
+
+(defun slack-print-list-users (element)
+  (let-alist element
+    (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
+    (color-insert
+     (list
+      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "yellow")))))
+
+
+
+;; (defun slack-print-list-users (element)
+;;   "Generate a new buffer with a list of all users.
+;; This list is interactive and allows you to hit <enter> on any name to get history with that user."
+;;   (let*
+;;       ((
+;;       ((has_files (cdr (assoc 'has_files element)))
+;;        (is_ultra_restricted (cdr (assoc 'is_ultra_restricted element)))
+;;        (is_restricted (cdr (assoc 'is_restricted element)))
+;;        (is_primary_owner (cdr (assoc 'is_primary_owner element)))
+;;        (is_owner (cdr (assoc 'is_owner element)))
+;;        (is_admin (cdr (assoc 'is_admin element)))
+;;        (profile (cdr (assoc 'profile element)))
+;;        (email (cdr (assoc 'email profile)))
+;;        (real_name (cdr (assoc 'real_name profile)))
+;;        (image_original (cdr (assoc 'image_original profile)))
+;;        (image_192 (cdr (assoc 'image_192 profile)))
+;;        (image_72 (cdr (assoc 'image_72 profile)))
+;;        (image_48 (cdr (assoc 'image_48 profile)))
+;;        (image_32 (cdr (assoc 'image_32 profile)))
+;;        (image_24 (cdr (assoc 'image_24 profile)))
+;;        (last_name (cdr (assoc 'last_name profile)))
+;;        (first_name (cdr (assoc 'first_name profile)))
+;;        (tz_offset (cdr (assoc 'tz_offset element)))
+;;        (tz (cdr (assoc 'tz element)))
+;;        (phone (cdr (assoc 'phone element)))
+;;        (skype (cdr (assoc 'skype element)))
+;;        (real_name (cdr (assoc 'real_name element)))
+;;        (color (cdr (assoc 'color element)))
+;;        (status (cdr (assoc 'status element)))
+;;        (deleted (cdr (assoc 'deleted element)))
+;;        (name (cdr (assoc 'name element)))
+;;        (id (cdr (assoc 'id element)))
+;;        (short-name (nth 0  (split-string email "@"))))
+;;     ;;(if real_name
+;;     ;;(puthash id real_name slack-users)
+;;     (puthash id real_name slack-users)
+;;     ;;)
+;;     ;;(insert (propertize (format " profile: %s" profile) 'face '(:foreground "darkgreen")))
+;;     ;; (insert (propertize (format " %s" name) 'face '(:foreground "darkgreen")))
+;;     ;; (insert (propertize (format " %s" email) 'face '(:foreground "orange")))
+;;     (insert (propertize (format " real_name:%s" real_name) 'face '(:foreground "orange")))
+;;     (insert (propertize (format " phone:%s" phone) 'face '(:foreground "orange")))
+;;     ;;    (insert (propertize (format " email:%s" email) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " is_ultra_restricted:%s" is_ultra_restricted) 'face '(:foreground "purple")))
+;;     (insert (propertize (format " is_restricted:%s" is_restricted) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " is_admin:%s" is_restricted) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " phone:%s" phone) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " skype:%s" skype) 'face '(:foreground "darkgreen")))
+;;     (princ "\n")))
+
 
 (defun slack-print-message (element)
   (message "SSS: %s" element))
