@@ -184,7 +184,7 @@
      :extra-headers data)))
 
 (defun slack-post-message (username channel message)
-  (interactive "sSlack Channel:\nsMessage: ")
+  (interactive "sUsername:\nsSlack Channel:\nsMessage: ")
   (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack-post*")
  		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
@@ -488,3 +488,4 @@
   (or (eq (hash-table-count slack-channels-name) 0)
       (eq (hash-table-count slack-channels-id) 0))
   (slack-list-channels))
+(provide 'slack)
