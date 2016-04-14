@@ -43,6 +43,10 @@
   (let ((id (slack-get-channel-id-from-name name)))
     (slack-get-channel-history name id)))
 
+(defun slack-group-history (name)
+  (interactive "sChannel:")
+  (let ((id (slack-get-id-from-name name)))
+    (slack-get-group-history name id)))
 
 (defun slack-get-user-chat-list ()
   (interactive)
@@ -85,9 +89,9 @@
     (insert (propertize (format " Creator:%s" (slack-get-username-from-id creator)) 'face '(:foreground "red")))
     (insert (propertize (format " Topic:%s" topic) 'face '(:foreground "red")))
     (insert (propertize (format " Created:%s" (print-time created)) 'face '(:foreground "purple")))
-    (insert (propertize (format " name:%s" name) 'face '(:foreground "yellow")))
-    (insert (propertize (format " id:%s" id) 'face '(:foreground "yellow")))
-    (insert (propertize (format " is_archived:%s" is_archived) 'face '(:foreground "yellow")))
+    (insert (propertize (format " name:%s" name) 'face '(:foreground "Darkblue2")))
+    (insert (propertize (format " id:%s" id) 'face '(:foreground "blue")))
+    (insert (propertize (format " is_archived:%s" is_archived) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
 (defun slack-print-users-chat-list (element)
@@ -100,7 +104,7 @@
     (if username (slack-create-im-link-in-buffer "blue" username id))
     (insert (propertize (format " User:%s" (slack-get-username-from-id user)) 'face '(:foreground "red")))
     (insert (propertize (format " Created:%s" (print-time created)) 'face '(:foreground "purple")))
-    (insert (propertize (format " id:%s" id) 'face '(:foreground "yellow")))
+    (insert (propertize (format " id:%s" id) 'face '(:foreground "darkblue")))
     (insert (propertize (format " Deleted?:%s" is_user_deleted) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
@@ -214,7 +218,7 @@
     (insert (propertize (format " %s" username) 'face '(:foreground "red")))
     (insert (propertize (format " %s" user) 'face '(:foreground "white")))
     (insert (propertize (format " %s" (print-time ts)) 'face '(:foreground "purple")))
-    (insert (propertize (format " %s" type) 'face '(:foreground "yellow")))
+    (insert (propertize (format " %s" type) 'face '(:foreground "darkblue")))
     (insert (propertize (format " %s" text) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
@@ -226,7 +230,7 @@
     (insert (propertize (format " %s" (slack-get-username-from-id user)) 'face '(:foreground "darkgreen")))
     (insert (propertize (format " %s" type) 'face '(:foreground "red")))
     (insert (propertize (format " %s" (print-time ts)) 'face '(:foreground "blue")))
-    (insert (propertize (format " %s" text) 'face '(:foreground "yellow")))
+    (insert (propertize (format " %s" text) 'face '(:foreground "darkblue")))
     (princ "\n")))
 
 (defun slack-list-channels ()
@@ -291,7 +295,7 @@
     (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
     (color-insert
      (list
-      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "yellow")))))
+      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
 
 (defun slack-print-list-channels (element)
   (let-alist element
@@ -306,7 +310,7 @@
       (cons .is_general "brown")
       (cons .is_archived "silver")
       (cons .creator "darkblue")
-      (cons .created "yellow")
+      (cons .created "darkblue")
       (cons .name "blue")
       (cons .id "orange")))))
 
@@ -354,7 +358,7 @@
     (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
     (color-insert
      (list
-      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "yellow")))))
+      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
 
 
 
