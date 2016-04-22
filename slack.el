@@ -36,45 +36,71 @@
 (defvar slack-users (make-hash-table :test 'equal))
 (defvar slack-channels-id (make-hash-table :test 'equal))
 (defvar slack-channels-name (make-hash-table :test 'equal))
+(defvar cruft-to-hyphens '( "=" " " "\\."))
 
 
-(defun slack-channel-history (name)
+(defun slack/channel-history (name)
   (interactive "sChannel:")
-  (let ((id (slack-get-channel-id-from-name name)))
-    (slack-get-channel-history name id)))
+  (let ((id (slack/get-channel-id-from-name name)))
+    (slack/get-channel-history name id)))
 
-(defun slack-group-history (name)
+(defun slack/group-history (name)
   (interactive "sChannel:")
-  (let ((id (slack-get-id-from-name name)))
-    (slack-get-group-history name id)))
+  (let ((id (slack/get-id-from-name name)))
+    (slack/get-group-history name id)))
 
-(defun slack-get-user-chat-list ()
+(defun hyphenize-string (original, replacements)
+  (if replacements
+      (hyphenize-string
+       (replace-regexp-in-string (car replacements) "-" original)
+       (cdr replacements))))
+
+(defun slack/make-buff-name (endpoint)
+  (format "*slack/%s-%s*"
+	  (replace-regexp-in-string " " "-" query)))
+
+(defun slack/api-request (endpoint handler args)
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer
+		 (format "*slack/%s*" endpoint)
+		 (uri (format "https://slack.com/api/im.list?token=%s" slack/token)))
+		(web-http-get
+		 (lambda (httpc header my-data)
+		   (with-output-to-temp-buffer channel-buffer
+		     (switch-to-buffer-other-window channel-buffer)
+		     (mapcar #'slack/print-users-chat-list (cdr (assoc 'ims (json-read-from-string my-data))))))
+		 :url uri
+		 :extra-headers data))))
+
+
+
+(defun slack/get-user-chat-list ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer "*slack-im-list*")
-		(uri (format "https://slack.com/api/im.list?token=%s" slack-token)))
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer "*slack/im-list*")
+		(uri (format "https://slack.com/api/im.list?token=%s" slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-users-chat-list (cdr (assoc 'ims (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-users-chat-list (cdr (assoc 'ims (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-get-groups-list ()
+(defun slack/get-groups-list ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer "*slack-group-list*")
-		(uri (format "https://slack.com/api/groups.list?token=%s" slack-token)))
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer "*slack/group-list*")
+		(uri (format "https://slack.com/api/groups.list?token=%s" slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-groups (cdr (assoc 'groups (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-groups (cdr (assoc 'groups (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-print-groups (element)
+(defun slack/print-groups (element)
   (let* (
 	 (purpose (cdr (assoc 'purpose element)))
 	 (topic (cdr (assoc 'topic element)))
@@ -85,8 +111,8 @@
 	 (name (cdr (assoc 'name element)))
 	 (id (cdr (assoc 'id element)))
 	 )
-    (slack-create-group-link-in-buffer "blue" name id)
-    (insert (propertize (format " Creator:%s" (slack-get-username-from-id creator)) 'face '(:foreground "red")))
+    (slack/create-group-link-in-buffer "blue" name id)
+    (insert (propertize (format " Creator:%s" (slack/get-username-from-id creator)) 'face '(:foreground "red")))
     (insert (propertize (format " Topic:%s" topic) 'face '(:foreground "red")))
     (insert (propertize (format " Created:%s" (print-time created)) 'face '(:foreground "purple")))
     (insert (propertize (format " name:%s" name) 'face '(:foreground "Darkblue2")))
@@ -94,127 +120,142 @@
     (insert (propertize (format " is_archived:%s" is_archived) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
-(defun slack-print-users-chat-list (element)
+(defun slack/print-users-chat-list (element)
   (message "XXX:%s" element)
   (let* ((is_user_deleted (cdr (assoc 'is_user_deleted element)))
 	 (created (cdr (assoc 'created element)))
 	 (user (cdr (assoc 'user element)))
 	 (id (cdr (assoc 'id element)))
-	 (username (slack-get-username-from-id user)))
-    (if username (slack-create-im-link-in-buffer "blue" username id))
-    (insert (propertize (format " User:%s" (slack-get-username-from-id user)) 'face '(:foreground "red")))
+	 (username (slack/get-username-from-id user)))
+    (if username (slack/create-im-link-in-buffer "blue" username id))
+    (insert (propertize (format " User:%s" (slack/get-username-from-id user)) 'face '(:foreground "red")))
     (insert (propertize (format " Created:%s" (print-time created)) 'face '(:foreground "purple")))
     (insert (propertize (format " id:%s" id) 'face '(:foreground "darkblue")))
     (insert (propertize (format " Deleted?:%s" is_user_deleted) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
-(defun slack-get-channel-history (name id)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer (format "*slack-%s-history*" name))
-		(uri (format "https://slack.com/api/channels.history?token=%s&channel=%s&count=%s" slack-token id 2000))
-		(id (slack-get-channel-id-from-name name))
+(defun slack/get-channel-history (name id)
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer (format "*slack/%s-history*" name))
+		(uri (format "https://slack.com/api/channels.history?token=%s&channel=%s&count=%s" slack/token id 2000))
+		(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-get-group-history (name id)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer (format "*slack-%s-history*" name))
-		(uri (format "https://slack.com/api/groups.history?token=%s&channel=%s&count=%s" slack-token id 2000))
-		(id (slack-get-channel-id-from-name name))
+(defun slack/get-group-history (name id)
+  (message "name:%s id:%s" name id)
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer (format "*slack/%s-history*" name))
+		(uri (format "https://slack.com/api/groups.history?token=%s&channel=%s&count=%s" slack/token id 2000))
+		(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-get-im-history (name id)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer (format "*slack-%s-history*" name))
-		(uri (format "https://slack.com/api/im.history?token=%s&channel=%s&count=%s" slack-token id 200))
-		;;(id (slack-get-channel-id-from-name name))
+(defun slack/get-im-history (name id)
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer (format "*slack/%s-history*" name))
+		(uri (format "https://slack.com/api/im.history?token=%s&channel=%s&count=%s" slack/token id 200))
+		;;(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-channel-history (cdr (assoc 'messages (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-list-emojis ()
+(defun slack/list-emojis ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack-token)))
-		(channel-buffer "*slack-emoji-history*")
-		(uri (format "https://slack.com/api/emoji.list?token=%s" slack-token)))
+  (lexical-let ((data `(("token" . ,slack/token)))
+		(channel-buffer "*slack/emoji-history*")
+		(uri (format "https://slack.com/api/emoji.list?token=%s" slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-emojis (cdr (assoc 'emoji (json-read-from-string my-data))))))
-     ;;(mapcar #'slack-print-channel-history (cdr (assoc 'emoji (json-read-from-string my-data))))))
+	 (mapcar #'slack/print-emojis (cdr (assoc 'emoji (json-read-from-string my-data))))))
+     ;;(mapcar #'slack/print-channel-history (cdr (assoc 'emoji (json-read-from-string my-data))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-print-emojis (element)
+(defun slack/print-emojis (element)
   (message "EEE: %s" element))
 
-(defun slack-search-file (query)
+(defun slack/search-file (query)
   (interactive "sSlack Query: ")
-  (slack-go-search query "file"))
+  (slack/go-search query "file"))
 
-(defun slack-search-messages (query)
+(defun slack/search-messages (query)
   (interactive "sSlack Query: ")
-  (slack-go-search query "messages"))
+  (slack/go-search query "messages"))
 
-(defun slack-go-search (query type)
-  (lexical-let* ((data `(("token" . ,slack-token)))
-		 (channel-buffer (format "*slack-search-%s-*" (replace-regexp-in-string " " "-" query)))
- 		 (uri (format "https://slack.com/api/search.%s?token=%s&count=%s&query=%s" type slack-token 10 query)))
+(defun slack/go-search (query type)
+  (lexical-let* ((data `(("token" . ,slack/token)))
+		 (channel-buffer (format "*slack/search-%s-*" (replace-regexp-in-string " " "-" query)))
+		 (uri (format "https://slack.com/api/search.%s?token=%s&count=%s&query=%s" type slack/token 10 query)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-search-results (cdr (assoc 'matches (cdr (assoc 'messages (json-read-from-string my-data))))))))
+	 (mapcar #'slack/print-search-results (cdr (assoc 'matches (cdr (assoc 'messages (json-read-from-string my-data))))))))
      :url uri
      :extra-headers data)))
 
-(defun slack-post-message (username channel message)
+(defun slack/post-im (username  message)
   (interactive "sSlack Channel:\nsMessage: ")
-  (lexical-let* ((data `(("token" . ,slack-token)))
-		 (channel-buffer "*slack-post*")
- 		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
+  (lexical-let* ((data `(("token" . ,slack/token)))
+		 (channel-buffer "*slack/post*")
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
     (message "XXX: uri:%s" uri)
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
 	 (switch-to-buffer-other-window channel-buffer)
-	 (mapcar #'slack-print-post-results (json-read-from-string my-data))))
+	 (mapcar #'slack/print-post-results (json-read-from-string my-data))))
      :url uri
      :extra-headers data)))
 
-(defun slack-print-post-results (element)
+(defun slack/post-message (username channel message)
+  (interactive "sSlack Channel:\nsMessage: ")
+  (lexical-let* ((data `(("token" . ,slack/token)))
+		 (channel-buffer "*slack/post*")
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
+    (message "XXX: uri:%s" uri)
+    (web-http-get
+     (lambda (httpc header my-data)
+       (with-output-to-temp-buffer channel-buffer
+	 (switch-to-buffer-other-window channel-buffer)
+	 (mapcar #'slack/print-post-results (json-read-from-string my-data))))
+     :url uri
+     :extra-headers data)))
+
+(defun slack/print-post-results (element)
   (message "AAA:%s" element)
   (let ((ts (cdr (assoc 'ts element)))
 	(channel (cdr (assoc 'channel element)))
 	(ok (cdr (assoc 'ok element))))
-    (insert (propertize (format " Time:%s Channel:%s OK?:%s" (print-time ts) (slack-get-channel-from-id channel) ok) 'face '(:foreground "white")))))
+    (insert (propertize (format " Time:%s Channel:%s OK?:%s" (print-time ts) (slack/get-channel-from-id channel) ok) 'face '(:foreground "white")))))
 
-(defun slack-print-search-results (element)
+(defun slack/print-search-results (element)
   (let ((text (cdr (assoc 'text element)))
 	(ts (cdr (assoc 'ts element)))
 	(type (cdr (assoc 'type element)))
 	(user (cdr (assoc 'user element)))
 	(username (cdr (assoc 'username element))))
-    (slack-create-user-link-in-buffer "darkgreen" username user)
+    (slack/create-user-link-in-buffer "darkgreen" username user)
     (insert (propertize (format " %s" username) 'face '(:foreground "red")))
     (insert (propertize (format " %s" user) 'face '(:foreground "white")))
     (insert (propertize (format " %s" (print-time ts)) 'face '(:foreground "purple")))
@@ -222,47 +263,47 @@
     (insert (propertize (format " %s" text) 'face '(:foreground "darkgreen")))
     (princ "\n")))
 
-(defun slack-print-channel-history (element)
+(defun slack/print-channel-history (element)
   (let* ((ts (cdr (assoc 'ts element)))
 	 (text (cdr (assoc 'text element)))
 	 (user (cdr (assoc 'user element)))
 	 (type (cdr (assoc 'type element))))
-    (insert (propertize (format " %s" (slack-get-username-from-id user)) 'face '(:foreground "darkgreen")))
+    (insert (propertize (format " %s" (slack/get-username-from-id user)) 'face '(:foreground "darkgreen")))
     (insert (propertize (format " %s" type) 'face '(:foreground "red")))
     (insert (propertize (format " %s" (print-time ts)) 'face '(:foreground "blue")))
     (insert (propertize (format " %s" text) 'face '(:foreground "darkblue")))
     (princ "\n")))
 
-(defun slack-list-channels ()
+(defun slack/list-channels ()
   (interactive)
-  (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
+  (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
-       (with-output-to-temp-buffer "*slack-channels*"
-	 (switch-to-buffer-other-window "*slack-channels*")
-	 (mapcar #'slack-print-list-channels (cdr (assoc 'channels (json-read-from-string my-data))))))
+       (with-output-to-temp-buffer "*slack/channels*"
+	 (switch-to-buffer-other-window "*slack/channels*")
+	 (mapcar #'slack/print-list-channels (cdr (assoc 'channels (json-read-from-string my-data))))))
      :url uri)))
 
-(defun slack-list-users ()
+(defun slack/list-users ()
   (interactive)
-  (lexical-let ((uri (format "https://slack.com/api/users.list?token=%s" slack-token)))
+  (lexical-let ((uri (format "https://slack.com/api/users.list?token=%s" slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
-       (with-output-to-temp-buffer "*slack-users*"
-	 (switch-to-buffer-other-window "*slack-users*")
-	 (mapcar #'slack-print-list-users (cdr (assoc 'members (json-read-from-string my-data))))))
+       (with-output-to-temp-buffer "*slack/users*"
+	 (switch-to-buffer-other-window "*slack/users*")
+	 (mapcar #'slack/print-list-users (cdr (assoc 'members (json-read-from-string my-data))))))
      :url uri)))
 
-(defun slack-function-on-url (function, url, attribute, title)
-  (lexical-let ((uri (format "%s?token=%s" url slack-token)))
+(defun slack/function-on-url (function, url, attribute, title)
+  (lexical-let ((uri (format "%s?token=%s" url slack/token)))
     (web-http-get
      (lambda (httpc header my-data)
-       (with-output-to-temp-buffer "*slack-channels*"
-	 (switch-to-buffer-other-window "*slack-channels*")
-	 (mapcar #'slack-print-list-channels (cdr (assoc 'channels (json-read-from-string my-data))))))
+       (with-output-to-temp-buffer "*slack/channels*"
+	 (switch-to-buffer-other-window "*slack/channels*")
+	 (mapcar #'slack/print-list-channels (cdr (assoc 'channels (json-read-from-string my-data))))))
      :url uri)))
 
-;; (defun slack-print-list-channels (element)
+;; (defun slack/print-list-channels (element)
 ;;   (let* ((num_members (format "%s" (cdr (assoc 'num_members element))))
 ;; 	 (purpose (format "%s" (cdr (assoc 'purpose element))))
 ;; 	 (topic (format "%s" (cdr (assoc 'topic element))))
@@ -274,30 +315,30 @@
 ;; 	 (created (format "%s" (cdr (assoc 'created element))))
 ;; 	 (name (format "%s" (cdr (assoc 'name element))))
 ;; 	 (id (format "%s" (cdr (assoc 'id element)))))
-;;     (puthash id name slack-channels-id)
-;;     (puthash name id slack-channels-name)
-;;     (slack-populate-users-hash)
-;;     (slack-create-channel-link-in-buffer "blue" name id)
+;;     (puthash id name slack/channels-id)
+;;     (puthash name id slack/channels-name)
+;;     (slack/populate-users-hash)
+;;     (slack/create-channel-link-in-buffer "blue" name id)
 ;;     ;;(insert (propertize (format " %s" id) 'face '(:foreground "purple")))
 ;;     (insert (propertize (format " #%s" num_members) 'face '(:foreground "darkgreen")))
 ;;     ;;(insert (propertize (format " %s" is_member) 'face '(:foreground "red")))
 ;;     ;;(insert (propertize (format " %s" is_archived) 'face '(:foreground "blue")))
-;;     (insert (propertize (format " creator: %s" (slack-get-username-from-id creator)) 'face '(:foreground "darkgreen")))
+;;     (insert (propertize (format " creator: %s" (slack/get-username-from-id creator)) 'face '(:foreground "darkgreen")))
 ;;     (insert (propertize (format " created: %s" (print-time created)) 'face '(:foreground "blue")))
 ;;     ;;(insert (propertize (format " members: %s" members) 'face '(:foreground "red")))
-;;     (insert (propertize (format " members: %s" (mapcar 'slack-get-username-from-id (split-string members))) 'face '(:foreground "red")))
+;;     (insert (propertize (format " members: %s" (mapcar 'slack/get-username-from-id (split-string members))) 'face '(:foreground "red")))
 ;;     (princ "\n")))
 
 
 
-(defun slack-print-list-users (element)
+(defun slack/print-list-users (element)
   (let-alist element
     (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
     (color-insert
      (list
       (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
 
-(defun slack-print-list-channels (element)
+(defun slack/print-list-channels (element)
   (let-alist element
     (list .num_members .purpose .topic .is_member .members .is_general .is_archived .creator .created .name .id)
     (color-insert
@@ -325,18 +366,18 @@
 ;; 	 (created (format "%s" (cdr (assoc 'created element))))
 ;; 	 (name (format "%s" (cdr (assoc 'name element))))
 ;; 	 (id (format "%s" (cdr (assoc 'id element)))))
-;;   (puthash id name slack-channels-id)
-;;   (puthash name id slack-channels-name)
-;;   (slack-populate-users-hash)
-;;   (slack-create-channel-link-in-buffer "blue" name id)
+;;   (puthash id name slack/channels-id)
+;;   (puthash name id slack/channels-name)
+;;   (slack/populate-users-hash)
+;;   (slack/create-channel-link-in-buffer "blue" name id)
 ;;   ;;(insert (propertize (format " %s" id) 'face '(:foreground "purple")))
 ;;   (insert (propertize (format " #%s" num_members) 'face '(:foreground "darkgreen")))
 ;;   ;;(insert (propertize (format " %s" is_member) 'face '(:foreground "red")))
 ;;   ;;(insert (propertize (format " %s" is_archived) 'face '(:foreground "blue")))
-;;   (insert (propertize (format " creator: %s" (slack-get-username-from-id creator)) 'face '(:foreground "darkgreen")))
+;;   (insert (propertize (format " creator: %s" (slack/get-username-from-id creator)) 'face '(:foreground "darkgreen")))
 ;;   (insert (propertize (format " created: %s" (print-time created)) 'face '(:foreground "blue")))
 ;;   ;;(insert (propertize (format " members: %s" members) 'face '(:foreground "red")))
-;;   (insert (propertize (format " members: %s" (mapcar 'slack-get-username-from-id (split-string members))) 'face '(:foreground "red")))
+;;   (insert (propertize (format " members: %s" (mapcar 'slack/get-username-from-id (split-string members))) 'face '(:foreground "red")))
 ;;   (princ "\n")))
 
 
@@ -353,7 +394,7 @@
       (insert (propertize (format "%s " val) 'face `(:foreground ,color)))))
   (princ "\n"))
 
-(defun slack-print-list-users (element)
+(defun slack/print-list-users (element)
   (let-alist element
     (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
     (color-insert
@@ -362,7 +403,7 @@
 
 
 
-;; (defun slack-print-list-users (element)
+;; (defun slack/print-list-users (element)
 ;;   "Generate a new buffer with a list of all users.
 ;; This list is interactive and allows you to hit <enter> on any name to get history with that user."
 ;;   (let*
@@ -396,8 +437,8 @@
 ;;        (id (cdr (assoc 'id element)))
 ;;        (short-name (nth 0  (split-string email "@"))))
 ;;     ;;(if real_name
-;;     ;;(puthash id real_name slack-users)
-;;     (puthash id real_name slack-users)
+;;     ;;(puthash id real_name slack/users)
+;;     (puthash id real_name slack/users)
 ;;     ;;)
 ;;     ;;(insert (propertize (format " profile: %s" profile) 'face '(:foreground "darkgreen")))
 ;;     ;; (insert (propertize (format " %s" name) 'face '(:foreground "darkgreen")))
@@ -413,16 +454,16 @@
 ;;     (princ "\n")))
 
 
-(defun slack-print-message (element)
+(defun slack/print-message (element)
   (message "SSS: %s" element))
 
-(defun slack-create-channel-link-in-buffer (color title id)
+(defun slack/create-channel-link-in-buffer (color title id)
   "Insert clickable string inside a buffer"
   (lexical-let ((map (make-sparse-keymap)))
     (define-key map (kbd "<RET>")
-      #'(lambda (e) (interactive "p") (slack-get-channel-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-channel-history title id)))
     (define-key map (kbd "<down-mouse-1>")
-      #'(lambda (e) (interactive "p") (slack-get-channel-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-channel-history title id)))
     (insert
      (propertize
       title
@@ -430,13 +471,13 @@
       'keymap map
       'mouse-face 'highlight))))
 
-(defun slack-create-group-link-in-buffer (color title id)
+(defun slack/create-group-link-in-buffer (color title id)
   "Insert clickable string inside a buffer"
   (lexical-let ((map (make-sparse-keymap)))
     (define-key map (kbd "<RET>")
-      #'(lambda (e) (interactive "p") (slack-get-group-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-group-history title id)))
     (define-key map (kbd "<down-mouse-1>")
-      #'(lambda (e) (interactive "p") (slack-get-group-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-group-history title id)))
     (insert
      (propertize
       title
@@ -444,13 +485,13 @@
       'keymap map
       'mouse-face 'highlight))))
 
-(defun slack-create-im-link-in-buffer (color title id)
+(defun slack/create-im-link-in-buffer (color title id)
   "Insert clickable string inside a buffer"
   (lexical-let ((map (make-sparse-keymap)))
     (define-key map (kbd "<RET>")
-      #'(lambda (e) (interactive "p") (slack-get-im-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-im-history title id)))
     (define-key map (kbd "<down-mouse-1>")
-      #'(lambda (e) (interactive "p") (slack-get-im-history title id)))
+      #'(lambda (e) (interactive "p") (slack/get-im-history title id)))
     (insert
      (propertize
       title
@@ -458,13 +499,13 @@
       'keymap map
       'mouse-face 'highlight))))
 
-(defun slack-create-user-link-in-buffer (color username user)
+(defun slack/create-user-link-in-buffer (color username user)
   "Insert clickable string inside a buffer"
   (lexical-let ((map (make-sparse-keymap)))
     (define-key map (kbd "<RET>")
-      #'(lambda (e) (interactive "p") (slack-search user)))
+      #'(lambda (e) (interactive "p") (slack/search user)))
     (define-key map (kbd "<down-mouse-1>")
-      #'(lambda (e) (interactive "p") (slack-search user)))
+      #'(lambda (e) (interactive "p") (slack/search user)))
     (insert
      (propertize
       username
@@ -472,32 +513,45 @@
       'keymap map
       'mouse-face 'highlight))))
 
-
 (defun print-time (ts)
   (format-time-string "%F" (seconds-to-time (if (numberp ts) ts (string-to-number ts)))))
 
-(defun slack-get-username-from-id (id)
+(defun slack/get-username-from-id (id)
   (if id
-      (gethash id slack-users)
+      (gethash id slack/users)
     "Nobody"))
 
-(defun slack-get-channel-from-id (id)
+(defun slack/get-channel-from-id (id)
   (if id
-      (gethash id slack-channels-id)
+      (gethash id slack/channels-id)
     "NoChan"))
 
-(defun slack-get-channel-id-from-name (id)
+(defun slack/get-channel-id-from-name (id)
   (if id
-      (gethash id slack-channels-name)
+      (gethash id slack/channels-name)
     "NoChan"))
 
-(defun slack-populate-users-hash ()
+(defun slack/populate-users-hash ()
   (interactive)
-  (if (eq (hash-table-count slack-users) 0)
-      (slack-list-users)))
+  (if (eq (hash-table-count slack/users) 0)
+      (slack/list-users)))
 
-(defun slack-populate-channel-hash ()
+(defun slack/populate-channel-hash ()
   (interactive)
-  (or (eq (hash-table-count slack-channels-name) 0)
-      (eq (hash-table-count slack-channels-id) 0))
-  (slack-list-channels))
+  (or (eq (hash-table-count slack/channels-name) 0)
+      (eq (hash-table-count slack/channels-id) 0))
+  (slack/list-channels))
+
+(defun slack/im-open (username  message)
+  (interactive "sSlack Channel:\nsMessage: ")
+  (lexical-let* ((data `(("token" . ,slack/token)))
+		 (channel-buffer "*slack/post*")
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
+    (message "XXX: uri:%s" uri)
+    (web-http-get
+     (lambda (httpc header my-data)
+       (with-output-to-temp-buffer channel-buffer
+	 (switch-to-buffer-other-window channel-buffer)
+	 (mapcar #'slack/print-post-results (json-read-from-string my-data))))
+     :url uri
+     :extra-headers data)))
