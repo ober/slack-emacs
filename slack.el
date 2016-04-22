@@ -63,7 +63,7 @@
   (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer
 		 (format "*slack/%s*" endpoint)
-		 (uri (format "https://slack.com/api/im.list?token=%s" slack/token)))
+		 (uri (format "https://slack.com/api/im.list?token=%s" slack-token)))
 		(web-http-get
 		 (lambda (httpc header my-data)
 		   (with-output-to-temp-buffer channel-buffer
@@ -76,9 +76,9 @@
 
 (defun slack/get-user-chat-list ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer "*slack/im-list*")
-		(uri (format "https://slack.com/api/im.list?token=%s" slack/token)))
+		(uri (format "https://slack.com/api/im.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
@@ -89,9 +89,9 @@
 
 (defun slack/get-groups-list ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer "*slack/group-list*")
-		(uri (format "https://slack.com/api/groups.list?token=%s" slack/token)))
+		(uri (format "https://slack.com/api/groups.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
@@ -135,9 +135,9 @@
     (princ "\n")))
 
 (defun slack/get-channel-history (name id)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer (format "*slack/%s-history*" name))
-		(uri (format "https://slack.com/api/channels.history?token=%s&channel=%s&count=%s" slack/token id 2000))
+		(uri (format "https://slack.com/api/channels.history?token=%s&channel=%s&count=%s" slack-token id 2000))
 		(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
@@ -150,9 +150,9 @@
 
 (defun slack/get-group-history (name id)
   (message "name:%s id:%s" name id)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer (format "*slack/%s-history*" name))
-		(uri (format "https://slack.com/api/groups.history?token=%s&channel=%s&count=%s" slack/token id 2000))
+		(uri (format "https://slack.com/api/groups.history?token=%s&channel=%s&count=%s" slack-token id 2000))
 		(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
@@ -164,9 +164,9 @@
      :extra-headers data)))
 
 (defun slack/get-im-history (name id)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer (format "*slack/%s-history*" name))
-		(uri (format "https://slack.com/api/im.history?token=%s&channel=%s&count=%s" slack/token id 200))
+		(uri (format "https://slack.com/api/im.history?token=%s&channel=%s&count=%s" slack-token id 200))
 		;;(id (slack/get-channel-id-from-name name))
 		)
     (web-http-get
@@ -179,9 +179,9 @@
 
 (defun slack/list-emojis ()
   (interactive)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer "*slack/emoji-history*")
-		(uri (format "https://slack.com/api/emoji.list?token=%s" slack/token)))
+		(uri (format "https://slack.com/api/emoji.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
@@ -203,9 +203,9 @@
   (slack/go-search query "messages"))
 
 (defun slack/go-search (query type)
-  (lexical-let* ((data `(("token" . ,slack/token)))
+  (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer (format "*slack/search-%s-*" (replace-regexp-in-string " " "-" query)))
-		 (uri (format "https://slack.com/api/search.%s?token=%s&count=%s&query=%s" type slack/token 10 query)))
+		 (uri (format "https://slack.com/api/search.%s?token=%s&count=%s&query=%s" type slack-token 10 query)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer channel-buffer
@@ -216,9 +216,9 @@
 
 (defun slack/post-im (username  message)
   (interactive "sSlack Channel:\nsMessage: ")
-  (lexical-let* ((data `(("token" . ,slack/token)))
+  (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack/post*")
-		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
     (message "XXX: uri:%s" uri)
     (web-http-get
      (lambda (httpc header my-data)
@@ -230,9 +230,9 @@
 
 (defun slack/post-message (username channel message)
   (interactive "sSlack Channel:\nsMessage: ")
-  (lexical-let* ((data `(("token" . ,slack/token)))
+  (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack/post*")
-		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
     (message "XXX: uri:%s" uri)
     (web-http-get
      (lambda (httpc header my-data)
@@ -276,7 +276,7 @@
 
 (defun slack/list-channels ()
   (interactive)
-  (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack/token)))
+  (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer "*slack/channels*"
@@ -286,7 +286,7 @@
 
 (defun slack/list-users ()
   (interactive)
-  (lexical-let ((uri (format "https://slack.com/api/users.list?token=%s" slack/token)))
+  (lexical-let ((uri (format "https://slack.com/api/users.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer "*slack/users*"
@@ -295,7 +295,7 @@
      :url uri)))
 
 (defun slack/function-on-url (function, url, attribute, title)
-  (lexical-let ((uri (format "%s?token=%s" url slack/token)))
+  (lexical-let ((uri (format "%s?token=%s" url slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer "*slack/channels*"
@@ -544,9 +544,9 @@
 
 (defun slack/im-open (username  message)
   (interactive "sSlack Channel:\nsMessage: ")
-  (lexical-let* ((data `(("token" . ,slack/token)))
+  (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack/post*")
-		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack/token channel (replace-regexp-in-string " " "%20" message) username)))
+		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
     (message "XXX: uri:%s" uri)
     (web-http-get
      (lambda (httpc header my-data)
