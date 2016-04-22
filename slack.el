@@ -33,11 +33,20 @@
 (require 'web)
 (require 'json)
 
+
+(defvar slack/hashes '( :users :channels-id :channels-name :api-endpoints))
+
+
 (defvar slack-users (make-hash-table :test 'equal))
 (defvar slack-channels-id (make-hash-table :test 'equal))
 (defvar slack-channels-name (make-hash-table :test 'equal))
 (defvar cruft-to-hyphens '( "=" " " "\\."))
 (defvar slack/master-url "https://slack.com/api/")
+
+
+(mapcar (lambda (h)
+	  (set (intern (format "slack/%s" h))
+	    (make-hash-table :test 'equal))) slack/hashes)
 
 (defun slack/channel-history (name)
   (interactive "sChannel:")
@@ -60,6 +69,10 @@
 (defun slack/make-buff-name (endpoint)
   (format "*slack-%s-%s*"
 	  (hyphenize-string endpoint cruft-to-hyphens)))
+
+(defun slack/make-uri (endpoint addendum)
+  (format "%s%s" slack/master-uri addendum))
+
 
 (defun slack/api-request (endpoint name handler args)
   (lexical-let ((data `(("token" . ,slack-token)))
@@ -274,6 +287,7 @@
 (defun slack/list-channels ()
   (interactive)
   (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
+    ;;(lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer "*slack-channels*"
