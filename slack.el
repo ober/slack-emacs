@@ -49,11 +49,13 @@
   (let ((id (slack/get-id-from-name name)))
     (slack/get-group-history name id)))
 
-(defun hyphenize-string (original, replacements)
-  (if replacements
-      (hyphenize-string
+(defun hyphenize-string (original replacements)
+  (if (eq nil replacements)
+      original
+    (progn
+      (hyphenize-string 
        (replace-regexp-in-string (car replacements) "-" original)
-       (cdr replacements))))
+       (cdr replacements)))))
 
 (defun slack/make-buff-name (endpoint)
   (format "*slack-%s-%s*"
