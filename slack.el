@@ -60,7 +60,7 @@
 	  (replace-regexp-in-string " " "-" query)))
 
 (defun slack/api-request (endpoint handler args)
-  (lexical-let ((data `(("token" . ,slack/token)))
+  (lexical-let ((data `(("token" . ,slack-token)))
 		(channel-buffer
 		 (format "*slack/%s*" endpoint)
 		 (uri (format "https://slack.com/api/im.list?token=%s" slack/token)))
