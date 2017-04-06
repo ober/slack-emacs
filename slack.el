@@ -35,14 +35,11 @@
 
 
 (defvar slack/hashes '( :users :channels-id :channels-name :api-endpoints))
-
-
 (defvar slack-users (make-hash-table :test 'equal))
 (defvar slack-channels-id (make-hash-table :test 'equal))
 (defvar slack/channels-name (make-hash-table :test 'equal))
 (defvar cruft-to-hyphens '( "=" " " "\\."))
 (defvar slack/master-url "https://slack.com/api/")
-
 
 (mapcar (lambda (h)
 	  (set (intern (format "slack/%s" h))
@@ -448,7 +445,7 @@
       (eq (hash-table-count slack/channels-id) 0))
   (slack/list-channels))
 
-(defun slack/im-open (username  message)
+(defun slack/im-open (channel message)
   (interactive "sSlack Channel:\nsMessage: ")
   (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack-post*")
