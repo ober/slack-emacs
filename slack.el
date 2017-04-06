@@ -409,7 +409,7 @@
   "Insert clickable string inside a buffer"
   (lexical-let ((map (make-sparse-keymap)))
     (define-key map (kbd "<RET>")
-      #'(lambda (e) (interactive "p") (slack/search user)))
+      #'(lambda (e) (interactive "p") (slack/go-search user)))
     (define-key map (kbd "<down-mouse-1>")
       #'(lambda (e) (interactive "p") (slack/search user)))
     (insert
