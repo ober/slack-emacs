@@ -39,7 +39,7 @@
 
 (defvar slack-users (make-hash-table :test 'equal))
 (defvar slack-channels-id (make-hash-table :test 'equal))
-(defvar slack-channels-name (make-hash-table :test 'equal))
+(defvar slack/channels-name (make-hash-table :test 'equal))
 (defvar cruft-to-hyphens '( "=" " " "\\."))
 (defvar slack/master-url "https://slack.com/api/")
 
@@ -62,7 +62,7 @@
   (if (eq nil replacements)
       original
     (progn
-      (hyphenize-string 
+      (hyphenize-string
        (replace-regexp-in-string (car replacements) "-" original)
        (cdr replacements)))))
 
