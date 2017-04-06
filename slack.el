@@ -449,7 +449,11 @@
   (interactive "sSlack Channel:\nsMessage: ")
   (lexical-let* ((data `(("token" . ,slack-token)))
 		 (channel-buffer "*slack-post*")
-		 (uri (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s" slack-token channel (replace-regexp-in-string " " "%20" message) username)))
+		 (uri
+		  (format "https://slack.com/api/chat.postMessage?token=%s&channel=%%23%s&text=%s&username=%s"
+			  slack-token
+			  channel
+			  (replace-regexp-in-string " " "%20" message) username)))
     (message "XXX: uri:%s" uri)
     (web-http-get
      (lambda (httpc header my-data)
