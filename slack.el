@@ -35,7 +35,7 @@
 
 (defvar slack/hashes '( :users :channels-id :channels-name :api-endpoints))
 (defvar slack/users (make-hash-table :test 'equal))
-(defvar slack-channels-id (make-hash-table :test 'equal))
+(defvar slack/channels-id (make-hash-table :test 'equal))
 (defvar slack/channels-name (make-hash-table :test 'equal))
 (defvar cruft-to-hyphens '( "=" " " "\\."))
 (defvar slack/master-url "https://slack.com/api/")
