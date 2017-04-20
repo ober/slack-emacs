@@ -33,9 +33,8 @@
 (require 'web)
 (require 'json)
 
-
 (defvar slack/hashes '( :users :channels-id :channels-name :api-endpoints))
-(defvar slack-users (make-hash-table :test 'equal))
+(defvar slack/users (make-hash-table :test 'equal))
 (defvar slack-channels-id (make-hash-table :test 'equal))
 (defvar slack/channels-name (make-hash-table :test 'equal))
 (defvar cruft-to-hyphens '( "=" " " "\\."))
@@ -48,6 +47,7 @@
 (defun slack/channel-history (name)
   (interactive "sChannel:")
   (let ((id (slack/get-channel-id-from-name name)))
+    (message "id: %s name:%s" id name)
     (slack/get-channel-history name id)))
 
 (defun slack/group-history (name)
@@ -122,7 +122,7 @@
     (insert (propertize (format " Creator:%s" (slack/get-username-from-id creator)) 'face '(:foreground "red")))
     (insert (propertize (format " Topic:%s" topic) 'face '(:foreground "red")))
     (insert (propertize (format " Created:%s" (print-time created)) 'face '(:foreground "purple")))
-    (insert (propertize (format " name:%s" name) 'face '(:foreground "Darkblue2")))
+    (insert (propertize (format " name:%s" name) 'face '(:foreground "Darkblue")))
     (insert (propertize (format " id:%s" id) 'face '(:foreground "blue")))
     (insert (propertize (format " is_archived:%s" is_archived) 'face '(:foreground "darkgreen")))
     (princ "\n")))
@@ -271,6 +271,7 @@
     (princ "\n")))
 
 (defun slack/print-channel-history (element)
+  (message "element:%s" element)
   (let* ((ts (cdr (assoc 'ts element)))
 	 (text (cdr (assoc 'text element)))
 	 (user (cdr (assoc 'user element)))
@@ -284,7 +285,6 @@
 (defun slack/list-channels ()
   (interactive)
   (lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
-    ;;(lexical-let ((uri (format "https://slack.com/api/channels.list?token=%s" slack-token)))
     (web-http-get
      (lambda (httpc header my-data)
        (with-output-to-temp-buffer "*slack-channels*"
@@ -313,15 +313,20 @@
      :url uri)))
 
 (defun slack/print-list-users (element)
+  (message "here: %s" (assoc 'id element))
   (let-alist element
-    (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
+    (list .id .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
+    (puthash .id .real_name slack/users)
     (color-insert
      (list
-      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
+      (cons .name "orange") (cons .id "silver") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
 
 (defun slack/print-list-channels (element)
   (let-alist element
     (list .num_members .purpose .topic .is_member .members .is_general .is_archived .creator .created .name .id)
+    (puthash .id .name slack/channels-id)
+    (puthash .name .id slack/channels-name)
+
     (color-insert
      (list
       (cons .num_members "orange")
@@ -346,15 +351,24 @@
   (dolist (x pairs)
     (let ((val (car x))
 	  (color (cdr x)))
-      (insert (propertize (format "%s " val) 'face `(:foreground ,color)))))
+      (insert (propertize (format "%s " val) 'face `( :foreground ,color)))))
   (princ "\n"))
 
 (defun slack/print-list-users (element)
+  (message "element: %s" element)
   (let-alist element
     (list .profile .name .has_files .real_name .phone .is_ultra_restricted .is_restricted .is_admin .phone .skype)
     (color-insert
      (list
-      (cons .name "orange") (cons .has_files "blue") (cons .real_name "purple") (cons .phone "pink") (cons .is_ultra_restricted "black") (cons .is_restricted "brown") (cons .is_admin "silver") (cons .phone "darkblue") (cons .skype "darkblue")))))
+      (cons .name "orange")
+      (cons .has_files "blue")
+      (cons .real_name "purple")
+      (cons .phone "pink")
+      (cons .is_ultra_restricted "black")
+      (cons .is_restricted "brown")
+      (cons .is_admin "silver")
+      (cons .phone "darkblue")
+      (cons .skype "darkblue")))))
 
 
 (defun slack/print-message (element)
@@ -421,7 +435,7 @@
 
 (defun slack/get-username-from-id (id)
   (if id
-      (gethash id slack-users)
+      (gethash id slack/users)
     "Nobody"))
 
 (defun slack/get-channel-from-id (id)
