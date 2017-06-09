@@ -450,7 +450,7 @@
 
 (defun slack/populate-users-hash ()
   (interactive)
-  (if (eq (hash-table-count slack-users) 0)
+  (if (eq (hash-table-count slack/users) 0)
       (slack/list-users)))
 
 (defun slack/populate-channel-hash ()
